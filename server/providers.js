@@ -1,8 +1,8 @@
-export const LLAMA_BASE_URL = 'https://llama.ghost-morpho.ts.net/v1';
+export const DEFAULT_CUSTOM_BASE_URL = 'https://llama.ghost-morpho.ts.net/v1';
 export const OPENAI_MODEL = 'gpt-6-luna';
 
-export function llamaBaseUrl(value = LLAMA_BASE_URL) {
-  const url = new URL(value || LLAMA_BASE_URL);
+export function llamaBaseUrl(value) {
+  const url = new URL(value?.trim() || process.env.CUSTOM_BASE_URL?.trim() || DEFAULT_CUSTOM_BASE_URL);
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Use an HTTP or HTTPS base URL.');
   return url.href.replace(/\/+$/, '');
 }

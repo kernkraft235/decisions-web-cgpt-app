@@ -4,12 +4,13 @@ import imageCompression from 'browser-image-compression';
 import { ArrowDown, ArrowUp, Check, ChevronDown, CircleDot, ImagePlus, Library, LoaderCircle, Play, Plus, RefreshCw, Save, Settings, Trash2, X } from 'lucide-react';
 import { evaluationSchema } from '../server/schema.js';
 
-const DEFAULT_URL = 'https://llama.ghost-morpho.ts.net/v1';
+// Older sessions stored this default as if it were a browser override.
+const LEGACY_DEFAULT_CUSTOM_BASE_URL = 'https://llama.ghost-morpho.ts.net/v1';
 const TYPE_NAMES = { noul: 'Yes / no', choice: 'Choice', score: 'Scale' };
 const SESSION_KEY = 'jev-session-v1';
 const TEXT_KEY = 'jev-text-v1';
 const IMAGES_KEY = 'jev-images-v1';
-const DEFAULT_SETTINGS = { provider: 'llama', llamaBaseUrl: DEFAULT_URL, models: { llama: '', openrouter: '', openai: 'gpt-6-luna' }, keys: { openrouter: '', openai: '' } };
+const DEFAULT_SETTINGS = { provider: 'llama', llamaBaseUrl: '', models: { llama: '', openrouter: '', openai: 'gpt-6-luna' }, keys: { openrouter: '', openai: '' } };
 
 function readSession() {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY)) || {}; } catch { return {}; }
@@ -17,7 +18,7 @@ function readSession() {
 function readText() { try { return localStorage.getItem(TEXT_KEY) || ''; } catch { return ''; } }
 function initialSettings() {
   const s = readSession().settings || {};
-  return { ...DEFAULT_SETTINGS, ...s, models: { ...DEFAULT_SETTINGS.models, ...s.models }, keys: { ...DEFAULT_SETTINGS.keys, ...s.keys } };
+  return { ...DEFAULT_SETTINGS, ...s, llamaBaseUrl: s.llamaBaseUrl === LEGACY_DEFAULT_CUSTOM_BASE_URL ? '' : s.llamaBaseUrl || '', models: { ...DEFAULT_SETTINGS.models, ...s.models }, keys: { ...DEFAULT_SETTINGS.keys, ...s.keys } };
 }
 const newId = () => crypto.randomUUID();
 const option = (label = '') => ({ id: newId(), label, description: '' });
@@ -92,9 +93,9 @@ function SaveDialog({ target, onClose, onSave }) {
 function SettingsDialog({ settings, serverConfig, onClose, onSave }) {
   const [draft, setDraft] = useState({ ...settings, keys: { ...settings.keys } });
   return <Modal title="Settings" onClose={onClose}>
-    <form onSubmit={e => { e.preventDefault(); onSave({ ...draft, llamaBaseUrl: draft.llamaBaseUrl.trim() || DEFAULT_URL, keys: { openai: draft.keys.openai.trim(), openrouter: draft.keys.openrouter.trim() } }); onClose(); }}>
-      <Field label="llama.cpp base URL"><input type="url" required value={draft.llamaBaseUrl} onChange={e => setDraft({ ...draft, llamaBaseUrl: e.target.value })} autoCapitalize="none" spellCheck={false} /></Field>
-      <p className="hint">Include /v1. Your default Tailscale endpoint needs no key.</p>
+    <form onSubmit={e => { e.preventDefault(); onSave({ ...draft, llamaBaseUrl: draft.llamaBaseUrl.trim(), keys: { openai: draft.keys.openai.trim(), openrouter: draft.keys.openrouter.trim() } }); onClose(); }}>
+      <Field label="Custom base URL (llama.cpp)"><input type="url" value={draft.llamaBaseUrl} placeholder={serverConfig?.llamaBaseUrl} onChange={e => setDraft({ ...draft, llamaBaseUrl: e.target.value })} autoCapitalize="none" spellCheck={false} /></Field>
+      <p className="hint">Include /v1. Leave blank to use the server’s CUSTOM_BASE_URL. No API key is sent to this endpoint.</p>
       {['openrouter', 'openai'].map(provider => <div className="setting-key" key={provider}>
         <Field label={`${provider === 'openai' ? 'OpenAI' : 'OpenRouter'} API key`}><input type="password" value={draft.keys[provider]} onChange={e => setDraft({ ...draft, keys: { ...draft.keys, [provider]: e.target.value } })} placeholder={serverConfig?.keys[provider] ? 'Using server .env key' : 'Enter a key'} autoCapitalize="none" autoComplete="off" spellCheck={false} /></Field>
         <p className="hint">{serverConfig?.keys[provider] ? 'A key is available from .env. Leave blank to use it.' : 'Optional until you use this provider.'}</p>
@@ -216,6 +217,7 @@ export default function App() {
   const abortRef = useRef(null);
   const fileRef = useRef(null);
   const provider = settings.provider;
+  const baseUrl = settings.llamaBaseUrl || serverConfig?.llamaBaseUrl || '';
   const modelId = settings.models[provider];
   const selectedModel = models.find(m => m.id === modelId);
   const keyAvailable = provider === 'llama' || !!settings.keys[provider] || !!serverConfig?.keys[provider];
@@ -250,9 +252,10 @@ export default function App() {
   }, [notice]);
 
   useEffect(() => {
+    if (!serverConfig) return;
     const controller = new AbortController();
     setLoadingModels(true); setModelError(''); setModels([]);
-    const query = new URLSearchParams({ provider, baseUrl: settings.llamaBaseUrl });
+    const query = new URLSearchParams({ provider, baseUrl });
     api(`/api/models?${query}`, { key: settings.keys[provider], signal: controller.signal })
       .then(({ models }) => {
         setModels(models);
@@ -267,7 +270,7 @@ export default function App() {
       .catch(error => { if (error.name !== 'AbortError') setModelError(errorMessage(error)); })
       .finally(() => { if (!controller.signal.aborted) setLoadingModels(false); });
     return () => controller.abort();
-  }, [provider, settings.llamaBaseUrl, settings.keys[provider], refreshNonce]);
+  }, [provider, baseUrl, serverConfig, settings.keys[provider], refreshNonce]);
 
   function edited() { setResult(null); setError(''); setSetInfo(info => ({ ...info, dirty: true })); }
   function changeQuestion(id, patch) { setQuestions(qs => qs.map(q => q.id === id ? { ...q, ...patch } : q)); edited(); }
@@ -306,7 +309,7 @@ export default function App() {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const request = { provider, model: modelId, baseUrl: settings.llamaBaseUrl, text, images: images.map(i => i.dataUrl), questions };
+      const request = { provider, model: modelId, baseUrl, text, images: images.map(i => i.dataUrl), questions };
       evaluationSchema.parse(request);
       if (!keyAvailable) throw new Error('Add a key in Settings to use this provider.');
       if (imagesUnsupported) throw new Error('This model is text-only. Choose a model with images or remove the images.');

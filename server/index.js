@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { z } from 'zod';
 import { evaluationSchema, questionSchema, questionListSchema } from './schema.js';
-import { LLAMA_BASE_URL, OPENAI_MODEL, providerKey, listModels, buildRequest, fetchJson, normalizeAnswers } from './providers.js';
+import { llamaBaseUrl, OPENAI_MODEL, providerKey, listModels, buildRequest, fetchJson, normalizeAnswers } from './providers.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 dotenv.config({ path: path.join(root, '.env'), quiet: true });
@@ -21,7 +21,7 @@ app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.get('/api/config', (req, res) => res.json({
-  llamaBaseUrl: LLAMA_BASE_URL,
+  llamaBaseUrl: llamaBaseUrl(),
   openaiModel: OPENAI_MODEL,
   keys: { openai: Boolean(providerKey('openai')), openrouter: Boolean(providerKey('openrouter')) },
 }));
@@ -95,9 +95,15 @@ app.use((error, req, res, next) => {
 });
 
 const server = createServer(app);
+const host = process.env.HOST?.trim() || '127.0.0.1';
+const port = process.env.PORT?.trim();
 server.on('error', error => {
-  if (error.code === 'EADDRINUSE' && !process.env.PORT) server.listen(0, '127.0.0.1');
+  if (error.code === 'EADDRINUSE' && !port) server.listen(0, host);
   else { console.error(`Could not start: ${error.message}`); process.exit(1); }
 });
-server.on('listening', () => console.log(`Decisions is running at http://127.0.0.1:${server.address().port}`));
-server.listen(Number(process.env.PORT || 4379), '127.0.0.1');
+server.on('listening', () => {
+  const address = server.address();
+  const displayHost = address.family === 'IPv6' ? `[${address.address}]` : address.address;
+  console.log(`Decisions is running at http://${displayHost}:${address.port}`);
+});
+server.listen(Number(port || 4379), host);
