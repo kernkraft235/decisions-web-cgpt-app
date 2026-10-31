@@ -1,82 +1,84 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import { JSONFilePreset } from 'lowdb/node';
 import { mkdir } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { z } from 'zod';
-import { evaluationSchema, questionSchema, questionListSchema } from './schema.js';
-import { llamaBaseUrl, OPENAI_MODEL, providerKey, listModels, buildRequest, fetchJson, normalizeAnswers } from './providers.js';
+import { createServices } from './services.js';
+import { createTools } from './tools.js';
+import { createMcpHandler } from './mcp.js';
+import { errorInfo } from './errors.js';
+import { MAX_FILE_BYTES, readAssetFile } from './assets.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 dotenv.config({ path: path.join(root, '.env'), quiet: true });
-await mkdir(path.join(root, 'data'), { recursive: true });
-const db = await JSONFilePreset(path.join(root, 'data/library.json'), { questions: [], sets: [] });
+const dataDir = path.join(root, 'data');
+await mkdir(dataDir, { recursive: true, mode: 0o700 });
+const services = await createServices(dataDir);
+const tools = createTools(services);
 const app = express();
 app.disable('x-powered-by');
-app.use(express.json({ limit: '48mb' }));
 app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+app.use(['/api', '/mcp'], (req, res, next) => {
+  const origin = req.get('Origin');
+  const ownOrigin = `${req.protocol}://${req.get('Host')}`;
+  if (origin && ![ownOrigin, services.config().frontendBaseUrl, 'https://chatgpt.com', 'https://chat.openai.com'].includes(origin)) return res.status(403).json({ error: 'This origin is not allowed.' });
+  next();
+});
 
-app.get('/api/health', (req, res) => res.json({ ok: true }));
-app.get('/api/config', (req, res) => res.json({
-  llamaBaseUrl: llamaBaseUrl(),
-  openaiModel: OPENAI_MODEL,
-  keys: { openai: Boolean(providerKey('openai')), openrouter: Boolean(providerKey('openrouter')) },
-}));
-app.get('/api/library', (req, res) => res.json(db.data));
+app.post('/api/workspaces/:id/assets', express.raw({ type: () => true, limit: MAX_FILE_BYTES, inflate: false }), async (req, res) => {
+  const expectedRevision = z.coerce.number().int().nonnegative().parse(req.get('X-Workspace-Revision'));
+  const workspace = await services.workspaces.update(req.params.id, { uploads: [{ buffer: req.body, name: req.query.name, mimeType: req.get('X-File-Type') || '' }] }, expectedRevision);
+  res.json(await tools.workspaceResult(workspace.id));
+});
+app.use(express.json({ limit: '48mb', inflate: false }));
+app.all('/mcp', createMcpHandler(root, services, tools));
+
+app.get('/api/health', (req, res) => res.json({ ok: true, app: 'jev-decisions', mcp: '/mcp' }));
+app.get('/api/config', (req, res) => res.json(services.config()));
+app.post('/api/config/defaults', async (req, res) => { await services.library.saveDefaults(req.body); res.json(services.config()); });
+app.get('/api/library', (req, res) => res.json(services.library.all()));
 
 app.post('/api/questions', async (req, res) => {
-  const { id, question } = z.object({ id: z.string().optional(), question: questionSchema }).parse(req.body);
-  const saved = { ...question, id: id || randomUUID(), updatedAt: new Date().toISOString() };
-  delete saved.savedId;
-  await db.update(data => {
-    const index = data.questions.findIndex(q => q.id === saved.id);
-    if (index < 0) data.questions.push(saved); else data.questions[index] = saved;
-  });
-  res.json(saved);
+  res.json(await services.library.saveQuestion(req.body));
 });
 app.post('/api/sets', async (req, res) => {
-  const input = z.object({ id: z.string().optional(), name: z.string().trim().min(1, 'Name this set.'), questions: questionListSchema }).parse(req.body);
-  const saved = { ...input, id: input.id || randomUUID(), updatedAt: new Date().toISOString() };
-  await db.update(data => {
-    const index = data.sets.findIndex(s => s.id === saved.id);
-    if (index < 0) data.sets.push(saved); else data.sets[index] = saved;
-  });
-  res.json(saved);
+  res.json(await services.library.saveSet(req.body));
 });
 app.delete('/api/:kind/:id', async (req, res) => {
   const kind = z.enum(['questions', 'sets']).parse(req.params.kind);
-  await db.update(data => { data[kind] = data[kind].filter(item => item.id !== req.params.id); });
-  res.json({ ok: true });
+  const expectedRevision = z.coerce.number().int().nonnegative().parse(req.query.revision);
+  res.json(await services.library.remove(kind, { id: req.params.id }, expectedRevision));
+});
+
+app.post('/api/tools/:name', async (req, res) => {
+  res.json(await tools.call(req.params.name, req.body || {}, { key: req.get('X-Provider-Key'), waitMs: req.params.name === 'evaluate' ? 0 : undefined }));
+});
+app.get('/api/workspaces/:id/assets/:assetId', async (req, res) => {
+  const asset = await services.workspaces.asset(req.params.id, req.params.assetId);
+  const preview = req.query.preview === '1';
+  const buffer = await readAssetFile(services.workspaces.assetsDirectory(req.params.id), preview ? asset.previewFile : asset.originalFile);
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.type(preview ? 'image/jpeg' : 'application/octet-stream');
+  res.set('Content-Disposition', preview ? 'inline' : `attachment; filename*=UTF-8''${encodeURIComponent(asset.name)}`);
+  res.send(buffer);
 });
 
 app.get('/api/models', async (req, res) => {
   const provider = z.enum(['llama', 'openrouter', 'openai']).parse(req.query.provider);
   const controller = new AbortController();
   res.on('close', () => { if (!res.writableEnded) controller.abort(); });
-  const models = await listModels(provider, req.query.baseUrl, providerKey(provider, req.get('X-Provider-Key')), AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]));
+  const models = await services.models(provider, { baseUrl: req.query.baseUrl, key: req.get('X-Provider-Key'), signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]) });
   res.json({ models });
 });
 app.post('/api/evaluate', async (req, res) => {
-  const request = evaluationSchema.parse(req.body);
-  const key = providerKey(request.provider, req.get('X-Provider-Key'));
-  if (request.provider !== 'llama' && !key) return res.status(400).json({ error: 'Add an API key in Settings or .env first.' });
   const controller = new AbortController();
   res.on('close', () => { if (!res.writableEnded) controller.abort(); });
-  const { url, body } = buildRequest(request);
-  const started = performance.now();
-  const data = await fetchJson(url, { method: 'POST', body: JSON.stringify(body), key, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(300000)]) });
-  res.json({
-    answers: normalizeAnswers(data, request.questions, request.provider),
-    model: data.model || request.model,
-    elapsedMs: Math.round(performance.now() - started),
-    usage: data.usage,
-    raw: data,
-  });
+  res.json(await services.directEvaluation(req.body, { key: req.get('X-Provider-Key'), signal: controller.signal }));
 });
 app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found.' }));
+app.use('/.well-known', (req, res) => res.status(404).json({ error: 'This private server does not use OAuth.' }));
 
 if (process.argv.includes('--dev')) {
   const { createServer: createViteServer } = await import('vite');
@@ -88,10 +90,8 @@ if (process.argv.includes('--dev')) {
 }
 app.use((error, req, res, next) => {
   if (res.headersSent) return next(error);
-  const message = error instanceof z.ZodError ? error.issues.map(i => i.message).join(' ') :
-    error.name === 'TimeoutError' ? 'The provider timed out. Local models may need more time to load; try again.' :
-    error.name === 'AbortError' ? 'Request cancelled.' : error.type === 'entity.too.large' ? 'The images are too large for one request.' : error.message || 'Request failed.';
-  res.status(error instanceof z.ZodError ? 400 : (error.status >= 400 && error.status <= 599 ? error.status : 502)).json({ error: message });
+  const { status, ...info } = errorInfo(error);
+  res.status(status).json(info);
 });
 
 const server = createServer(app);
@@ -104,6 +104,12 @@ server.on('error', error => {
 server.on('listening', () => {
   const address = server.address();
   const displayHost = address.family === 'IPv6' ? `[${address.address}]` : address.address;
+  services.setLocalBase(`http://${['0.0.0.0', '::'].includes(address.address) ? '127.0.0.1' : displayHost}:${address.port}`);
   console.log(`Decisions is running at http://${displayHost}:${address.port}`);
 });
 server.listen(Number(port || 4379), host);
+for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
+  services.close();
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 2500).unref();
+});

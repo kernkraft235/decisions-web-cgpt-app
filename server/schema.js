@@ -1,33 +1,41 @@
 import { z } from 'zod';
 
-const criterion = z.object({
+export const criterionSchema = z.object({
   id: z.string().optional(),
-  label: z.string().trim(),
-  description: z.string().trim().default(''),
+  label: z.string(),
+  description: z.string().default(''),
 });
 
-export const questionSchema = z.object({
+export const draftQuestionSchema = z.object({
   id: z.string().min(1),
   savedId: z.string().optional(),
-  name: z.string().trim().min(1, 'Name each question.'),
+  name: z.string().default(''),
   type: z.enum(['noul', 'choice', 'score']),
+  instructions: z.string().default(''),
+  trueDescription: z.string().default(''),
+  falseDescription: z.string().default(''),
+  choices: z.array(criterionSchema).max(255).default([]),
+  levels: z.array(criterionSchema).max(10).default([]),
+});
+
+export const questionSchema = draftQuestionSchema.extend({
+  name: z.string().trim().min(1, 'Name each question.'),
   instructions: z.string().trim().min(1, 'Write the question to ask.'),
-  trueDescription: z.string().trim().default(''),
-  falseDescription: z.string().trim().default(''),
-  choices: z.array(criterion).max(255).default([]),
-  levels: z.array(criterion).max(10).default([]),
 }).superRefine((q, context) => {
   const options = q.type === 'choice' ? q.choices : q.type === 'score' ? q.levels : null;
   if (options && options.length < 2) {
     context.addIssue({ code: 'custom', message: `${q.name}: add at least two ${q.type === 'choice' ? 'choices' : 'scale levels'}.` });
   }
-  if (options?.some(o => !o.label)) {
+  if (options?.some(o => !o.label.trim())) {
     context.addIssue({ code: 'custom', message: `${q.name}: give every option or level a label.` });
   }
   if (q.type === 'choice' && new Set(q.choices.map(o => o.label)).size !== q.choices.length) {
     context.addIssue({ code: 'custom', message: `${q.name}: choice labels must be unique.` });
   }
 });
+
+export const draftQuestionListSchema = z.array(draftQuestionSchema).max(200)
+  .refine(qs => new Set(qs.map(q => q.id)).size === qs.length, 'Question IDs must be unique.');
 
 export const questionListSchema = z.array(questionSchema).min(1, 'Add a question first.').max(200)
   .refine(qs => new Set(qs.map(q => q.id)).size === qs.length, 'Question IDs must be unique.');

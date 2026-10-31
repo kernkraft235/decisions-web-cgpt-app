@@ -1,0 +1,22 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "jev-decisions",
+  "version": "0.1.0",
+  "description": "Evaluate text, images, and documents with local or cloud decision models. Reuse named questions, sets, and shared workspaces with optional interactive widgets.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "JEV Decisions",
+        "shortDescription": "Local and cloud decisions",
+        "capabilities": ["Read", "Write"],
+        "logo": "./assets/icon.svg",
+        "composerIcon": "./assets/icon.svg",
+        "defaultPrompt": [
+          "Evaluate this file with my saved question set.",
+          "Create decision questions and save them as a named set.",
+          "Open my saved Decisions workspace."
+        ]
+      }
+    }
+  }
+}

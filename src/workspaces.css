@@ -1,0 +1,98 @@
+.workspace-app { padding-bottom: 25px; }
+.workspace-header { margin-bottom: 12px; gap: 12px; }
+.workspace-heading { min-width: 0; }
+.workspace-heading .wordmark { max-width: 100%; }
+.workspace-heading .wordmark span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-state { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.workspace-header .header-actions { flex-shrink: 0; gap: 3px; }
+.workspace-header .share-button { font-size: 11px; padding: 6px 8px; }
+.workspace-toolbar { display: flex; gap: 6px; align-items: center; margin-bottom: 16px; }
+.workspace-toolbar > .field-label { width: 160px; margin-right: auto; }
+.frontend-link { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; text-decoration: none; }
+.workspace-share-link { display: flex; align-items: end; gap: 5px; margin: 0 0 18px; }
+.workspace-share-link > .field-label { flex: 1; min-width: 0; }
+.workspace-share-link .icon-button { margin-bottom: 2px; }
+.workspace-connection { max-width: none; margin-bottom: 20px; }
+.workspace-model-fields { display: flex; align-items: end; gap: 7px; }
+.workspace-model-fields > .field-label:first-child { width: 130px; flex-shrink: 0; }
+.workspace-model-fields > .field-label:nth-child(2) { flex: 1; min-width: 0; }
+.workspace-model-fields > .icon-button { margin-bottom: 1px; }
+.workspace-app .error-block { margin-bottom: 14px; }
+.workspace-app.view-prompt .workspace, .workspace-app.view-questions .workspace { display: block; }
+.workspace-app.view-results .workspace { display: none; }
+.workspace-app.view-prompt .input-section { position: static; }
+.workspace-picker-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 15px; }
+.workspace-picker-actions > button { font-size: 12px; }
+.workspace-search { display: flex; gap: 10px; align-items: end; margin-bottom: 10px; }
+.workspace-search > .field-label { flex: 1; min-width: 0; }
+.check-label { display: flex; align-items: center; gap: 5px; min-height: 36px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.check-label input { margin: 0; width: 16px; height: 16px; accent-color: var(--accent); }
+.inline-confirm, .conflict-panel { border: 1px solid #705a3b; background: #30291e; border-radius: 7px; padding: 11px; margin: 12px 0; font-size: 12px; }
+.inline-confirm > div, .conflict-panel > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+.inline-confirm button, .conflict-panel button { font-size: 12px; }
+.inline-rename { display: flex; align-items: end; gap: 6px; margin: 12px 0; }
+.inline-rename > .field-label { flex: 1; min-width: 0; }
+.inline-rename button { font-size: 12px; }
+.server-default-setting { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 5px; }
+.server-default-setting > button { font-size: 12px; margin-top: 8px; }
+.workspace-files { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.workspace-file { display: flex; align-items: start; gap: 9px; padding: 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+.workspace-file > img { width: 72px; max-height: 80px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+.workspace-file > div { flex: 1; min-width: 0; }
+.workspace-file strong { display: block; font-size: 12px; overflow-wrap: anywhere; font-weight: 500; }
+.workspace-file > div > span { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.workspace-file .icon-button { min-width: 26px; width: 26px; min-height: 27px; padding: 3px; margin: -4px -4px 0 0; }
+.workspace-file details { margin-top: 5px; }
+.workspace-file summary { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.workspace-file pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; font-size: 11px; background: #0f1218; padding: 8px; margin-top: 7px; border-radius: 4px; }
+.workspace-file .error { margin-top: 5px; font-size: 11px; }
+.prompt-composer { position: relative; }
+.file-mentions { position: absolute; left: 0; right: 0; top: 100%; z-index: 5; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); padding: 4px; box-shadow: 0 6px 16px #0004; }
+.file-mentions > button { display: block; width: 100%; text-align: left; font-size: 12px; border: 0; background: transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.workspace-input-summary { font-size: 11px; color: var(--muted); margin-bottom: 7px; }
+.workspace-results { margin-top: 20px; }
+.workspace-results > .hint { margin-bottom: 12px; }
+.workspace-results > .error { margin-bottom: 12px; }
+.workspace-results .section-heading > .field-label { max-width: 260px; min-width: 0; }
+.result-question-heading { padding: 12px 13px; }
+.result-question-heading > strong { display: block; font-size: 12px; font-weight: 500; color: #bfcde3; }
+.result-question-heading > p { margin-top: 5px; font-size: 14px; overflow-wrap: anywhere; }
+.workspace-app .run-info { margin-top: 16px; }
+.results-run { margin-top: 15px; }
+.results-run > .hint { margin-bottom: 10px; }
+.loading-workspace { display: flex; align-items: center; gap: 10px; padding-top: 25px; flex-wrap: wrap; }
+.loading-workspace p { flex: 1; min-width: 160px; }
+.widget-body { margin: 0; background: transparent; }
+.embedded-workspace { padding: max(12px, var(--jev-safe-top, 0px)) max(12px, var(--jev-safe-right, 0px)) max(12px, var(--jev-safe-bottom, 0px)) max(12px, var(--jev-safe-left, 0px)); }
+.embedded-workspace .app-header { min-height: 49px; }
+.embedded-workspace .wordmark { font-size: 17px; }
+.embedded-workspace .workspace-toolbar { margin-bottom: 12px; }
+.embedded-workspace .toast { bottom: 12px; }
+html[data-theme="light"] { color-scheme: light; }
+html[data-theme="light"] .widget-body { background: transparent; color: #202733; --surface: #f8f9fb; --border: #d8dde6; --muted: #606d80; --accent: #345e9d; }
+html[data-theme="light"] .embedded-workspace :is(button, .field, .question, .workspace-file, dialog) { background: #f8f9fb; color: #263247; border-color: #d4dce8; }
+html[data-theme="light"] .embedded-workspace :is(.wordmark, h2, h3, .question-name, .question-details > summary > p, .result-question-heading > strong, .editor-heading) { color: #263247; }
+html[data-theme="light"] .embedded-workspace :is(input, textarea, select) { color: #263247; }
+html[data-theme="light"] .embedded-workspace select option { background: #fff; color: #263247; }
+html[data-theme="light"] .embedded-workspace .answer { background: #eef3fa; border-color: #cbd8eb; }
+html[data-theme="light"] .embedded-workspace .answer-line > strong { color: #264b81; }
+html[data-theme="light"] .embedded-workspace :is(.answer-line > span, .distribution summary, .distribution-row > span:first-child, .editor-footer > span) { color: #52657f; }
+html[data-theme="light"] .embedded-workspace .primary { background: #244e8b; border-color: #244e8b; color: #fff; }
+html[data-theme="light"] .embedded-workspace :is(.inline-confirm, .conflict-panel) { background: #fff6e6; border-color: #d4bb85; }
+html[data-theme="light"] .embedded-workspace :is(.error, .answer-error) { color: #942d3d; }
+html[data-theme="light"] .embedded-workspace .error-block { background: #fff0f0; border-color: #e0b9bf; color: #842537; }
+html[data-theme="light"] .embedded-workspace .workspace-file pre { background: #eef1f6; }
+@media (max-width: 740px) {
+  .workspace-header { margin-bottom: 11px; }
+  .workspace-header .share-button > span { display: none; }
+  .workspace-header .share-button { padding: 7px; min-width: 32px; }
+  .workspace-header .header-actions .icon-button { min-width: 30px; width: 30px; }
+  .workspace-model-fields > .field-label:first-child { width: 110px; }
+  .workspace-app .workspace { gap: 20px; }
+  .workspace-toolbar { gap: 3px; }
+  .workspace-toolbar > .field-label { width: 144px; }
+  .frontend-link span { display: none; }
+  .frontend-link { padding: 8px; }
+  .workspace-results .section-heading { flex-wrap: wrap; }
+  .workspace-results .section-heading > .field-label { max-width: none; flex: 1; min-width: 150px; }
+}
